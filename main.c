@@ -105,6 +105,30 @@ static u8_t reset(u8_t* x)
   return 0x00;
 }
 
+static u8_t access_mem(u8_t* x)
+{
+  u32_t addr = (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3];
+  u32_t len = (x[4] << 24) | (x[5] << 16) | (x[6] << 8) | x[7];
+  simpleserial_put('r', len, (void *)addr);
+  return 0x00;
+}
+
+static u8_t write32(u8_t* x)
+{
+  u32_t addr = (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3];
+  u32_t word = (x[4] << 24) | (x[5] << 16) | (x[6] << 8) | x[7];
+  *(u32_t *)addr = word;
+  return 0x00;
+}
+
+static u8_t jump(u8_t* x)
+{
+  u32_t addr = (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3];
+  u32_t res = ((u32_t (*)(void))addr)();
+  simpleserial_put('r', 4, (u8_t *)&res);
+  return 0x00;
+}
+
 void main(void) {
   pervasive_clock_enable_gpio();
   pervasive_reset_exit_gpio();
@@ -123,6 +147,9 @@ void main(void) {
   simpleserial_addcmd('s', 3, get_keyslot);
   simpleserial_addcmd('p', 16, get_pt);
   simpleserial_addcmd('x', 0, reset);
+  simpleserial_addcmd('a', 8, access_mem);
+  simpleserial_addcmd('w', 8, write32);
+  simpleserial_addcmd('j', 4, jump);
   while (1) {
     simpleserial_get();
   }
