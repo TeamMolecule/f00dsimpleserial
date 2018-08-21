@@ -1,3 +1,10 @@
+/* simpleserial for f00d
+ *
+ * Copyright (C) 2018 Yifan Lu
+ *
+ * This software may be modified and distributed under the terms
+ * of the MIT license.  See the LICENSE file for details.
+ */
 #pragma once
 
 #define GPIO_PORT_MODE_INPUT  0
@@ -10,6 +17,6 @@
 #define GPIO_PORT_PS_LED  7
 #define GPIO_PORT_HDMI_BRIDGE 15
 
-static void gpio_set_port_mode(int bus, int port, int mode);
-static void gpio_port_set(int bus, int port);
-static void gpio_port_clear(int bus, int port);
+void gpio_set_port_mode(int bus, int port, int mode);
+void gpio_port_set(int bus, int port);
+void gpio_port_clear(int bus, int port);

@@ -1,11 +1,17 @@
-#include "libc.h"
+/* simpleserial for f00d
+ *
+ * Copyright (C) 2018 Yifan Lu
+ *
+ * This software may be modified and distributed under the terms
+ * of the MIT license.  See the LICENSE file for details.
+ */
+#include "config.h"
+#include "types.h"
 
-#define SS_VER SS_VER_1_1
-
-#include "uart.c"
-#include "pervasive.c"
-#include "gpio.c"
-#include "simpleserial.c"
+#include "uart.h"
+#include "pervasive.h"
+#include "gpio.h"
+#include "simpleserial.h"
 
 static volatile u32_t * const BIGMAC = (void *)0xE0050000;
 static volatile void * const BIGMAC_KEY = (void *)0xE0050200;
@@ -70,10 +76,7 @@ static u8_t get_pt(u8_t* pt)
   BIGMAC[3] = param;
   BIGMAC[4] = g_keyslot;
 
-  uart_putc(DEBUG_PORT, 'X');
-  uart_putc(DEBUG_PORT, 'D');
-  uart_putc(DEBUG_PORT, '\r');
-  uart_putc(DEBUG_PORT, '\n');
+  uart_puts(DEBUG_PORT, "XD\r\n");
 
   for (volatile register int i = 0; i < g_offset; i++);
 
@@ -147,6 +150,8 @@ void main(void) {
 
   gpio_set_port_mode(0, GPIO_PORT_GAMECARD_LED, GPIO_PORT_MODE_OUTPUT);
   gpio_port_set(0, GPIO_PORT_GAMECARD_LED);
+
+  uart_puts(DEBUG_PORT, "HI\r\n");
 
   reset((void *)0);
   simpleserial_init();    

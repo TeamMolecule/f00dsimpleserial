@@ -7,9 +7,5 @@
  */
 #pragma once
 
-int uart_init(int bus);
-int uart_putc(int port, char c);
-int uart_getc(int port);
-void uart_flush_tx(int port);
-void uart_flush_rx(int port);
-void uart_puts(int port, const char *s);
+#define SS_VER SS_VER_1_1
+#define DEBUG_PORT (0)

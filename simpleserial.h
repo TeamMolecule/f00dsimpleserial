@@ -4,7 +4,7 @@
 #ifndef SIMPLESERIAL_H
 #define SIMPLESERIAL_H
 
-#include "libc.h"
+#include "types.h"
 
 // Set up the SimpleSerial module
 // This prepares any internal commands

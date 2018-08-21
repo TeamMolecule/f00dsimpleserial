@@ -1,7 +1,8 @@
 // simpleserial.c
 
+#include "config.h"
+#include "types.h"
 #include "simpleserial.h"
-#include "libc.h"
 #include "uart.h"
 
 typedef struct ss_cmd

@@ -1,4 +1,4 @@
-mep-elf-gcc -fno-delete-null-pointer-checks -nostdlib -Wl,-T linker.x -fno-optimize-sibling-calls -mc=tiny -Os -std=gnu99 -mel bootstrap.S main.c -o f00d_elf
+mep-elf-gcc -fno-delete-null-pointer-checks -nostdlib -Wl,-T linker.x -fno-optimize-sibling-calls -mc=tiny -Os -std=gnu99 -mel bootstrap.S main.c uart.c gpio.c pervasive.c simpleserial.c -o f00d_elf
 
 mep-elf-objcopy -O binary f00d_elf payload.bin
 

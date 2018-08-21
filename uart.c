@@ -1,34 +1,20 @@
-/*
- * Copyright (c) 2014 Travis Geiselbrecht
- * Copyright (c) 2015 Yifan Lu
+/* simpleserial for f00d
  *
- * Permission is hereby granted, free of charge, to any person obtaining
- * a copy of this software and associated documentation files
- * (the "Software"), to deal in the Software without restriction,
- * including without limitation the rights to use, copy, modify, merge,
- * publish, distribute, sublicense, and/or sell copies of the Software,
- * and to permit persons to whom the Software is furnished to do so,
- * subject to the following conditions:
+ * Copyright (C) 2018 Yifan Lu
  *
- * The above copyright notice and this permission notice shall be
- * included in all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
- * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ * This software may be modified and distributed under the terms
+ * of the MIT license.  See the LICENSE file for details.
  */
-#include "libc.h"
+#include "config.h"
+#include "types.h"
 #include "vita.h"
+#include "uart.h"
 
 #define REG32(addr) ((volatile u32_t *)(addr))
 #define UART_REGS(i)            ((void *)(UART_BASE + (i) * 0x10000))
 #define UARTCLKGEN_REGS(i)      ((void *)(UART_CLKGEN_BASE + (i) * 4))
 
-static int uart_init(int bus)
+int uart_init(int bus)
 {
     volatile unsigned int *uart_regs = UART_REGS(bus);
     volatile unsigned int *uartclkgen_regs = UARTCLKGEN_REGS(bus);
@@ -53,7 +39,7 @@ static int uart_init(int bus)
     return 0;
 }
 
-static int uart_putc(int port, char c)
+int uart_putc(int port, char c)
 {
     u32_t base = (u32_t)UART_REGS(port);
 
@@ -64,7 +50,7 @@ static int uart_putc(int port, char c)
     return 1;
 }
 
-static int uart_getc(int port)
+int uart_getc(int port)
 {
     u32_t base = (u32_t)UART_REGS(port);
     int c;
@@ -76,7 +62,7 @@ static int uart_getc(int port)
     return c;
 }
 
-static void uart_flush_tx(int port)
+void uart_flush_tx(int port)
 {
     u32_t base = (u32_t)UART_REGS(port);
 
@@ -84,6 +70,16 @@ static void uart_flush_tx(int port)
     while (i++ < 0x1000 && !(*REG32(base + 40) & 0x200));
 }
 
-static void uart_flush_rx(int port)
+void uart_flush_rx(int port)
 {
+}
+
+void uart_puts(int port, const char *s) {
+    while (*s) {
+        uart_putc(port, *s);
+        if (*s == '\n') {
+            uart_flush_tx(port);
+        }
+        s++;
+    }
 }
