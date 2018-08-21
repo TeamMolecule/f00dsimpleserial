@@ -12,6 +12,7 @@ static volatile void * const BIGMAC_KEY = (void *)0xE0050200;
 static u32_t g_keyslot;
 static u32_t g_len;
 static u32_t g_key[8];
+static u32_t g_offset;
 
 void *memcpy(void *dst, const void *src, size_t n) {
   u32_t *dst32 = dst;
@@ -74,7 +75,7 @@ static u8_t get_pt(u8_t* pt)
   uart_putc(DEBUG_PORT, '\r');
   uart_putc(DEBUG_PORT, '\n');
 
-  for (volatile register int i = 0; i < 0x100; i++);
+  for (volatile register int i = 0; i < g_offset; i++);
 
   // start processing
   BIGMAC[7] = 1;
@@ -102,6 +103,7 @@ static u8_t reset(u8_t* x)
   for (int i = 0; i < 8; i++) {
     g_key[i] = 0;
   }
+  g_offset = 0;
   return 0x00;
 }
 
@@ -129,6 +131,12 @@ static u8_t jump(u8_t* x)
   return 0x00;
 }
 
+static u8_t set_offset(u8_t* x)
+{
+  g_offset = (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3];
+  return 0x00;
+}
+
 void main(void) {
   pervasive_clock_enable_gpio();
   pervasive_reset_exit_gpio();
@@ -150,6 +158,7 @@ void main(void) {
   simpleserial_addcmd('a', 8, access_mem);
   simpleserial_addcmd('w', 8, write32);
   simpleserial_addcmd('j', 4, jump);
+  simpleserial_addcmd('o', 4, set_offset);
   while (1) {
     simpleserial_get();
   }
