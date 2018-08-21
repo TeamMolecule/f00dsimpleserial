@@ -19,9 +19,9 @@ over UART.
 | x       | x\n                                                                 | Clears Buffers (resets to 'IDLE' state), does not clear any variables.                                            | In     |
 | z       | z00\n                                                               | ACK - Command processing done (with optional status code)                                                         | Out    |
 | s       | s020810\n                                                           | Set keyslot & key length. First two bytes is keyslot in big endian. Last byte is 10 for AES128 and 20 for AES256. | In     |
-| a       | a1F84000000004000                                                   | Access memory. First four bytes is address in big endian. Next four bytes is length in big endian.                | In     |
-| w       | w3000000000000001                                                   | Write 32-bits. First four bytes is address in big endian. Next four bytes is the value in big endian.             | In     |
-| j       | j005C0000                                                           | Jump to code. Four byte address in big endian. Returns result packet in little endian.                            | In     |
+| a       | a1F84000000004000\n                                                 | Access memory. First four bytes is address in big endian. Next four bytes is length in big endian.                | In     |
+| w       | w3000000000000001\n                                                 | Write 32-bits. First four bytes is address in big endian. Next four bytes is the value in big endian.             | In     |
+| j       | j005C0000\n                                                         | Jump to code. Four byte address in big endian. Returns result packet in little endian.                            | In     |
 
 ## Building
 
