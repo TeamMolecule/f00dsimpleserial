@@ -26,6 +26,6 @@ over UART.
 
 ## Building
 
-Have the MeP toolchain in your `PATH` and run `makef00d.sh`. `payload.bin` can 
+Have the MeP toolchain in your `PATH` and run `make`. `payload.bin` can 
 be used with the Petite Mort exception payload. `f00dexec.bin` can be used with 
 taif00d.
