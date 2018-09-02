@@ -19,6 +19,7 @@ static u32_t g_keyslot;
 static u32_t g_len;
 static u32_t g_key[8];
 static u32_t g_offset;
+static u32_t g_dst_keyslot;
 
 void *memcpy(void *dst, const void *src, size_t n) {
   u32_t *dst32 = dst;
@@ -60,6 +61,7 @@ static u8_t get_pt(u8_t* pt)
   // setup params
 
   u32_t param = 0x1;
+  u32_t dst = (u32_t)pt;
   if (g_len == 16) {
     param |= 0x100;
   } else {
@@ -68,10 +70,13 @@ static u8_t get_pt(u8_t* pt)
   if (g_keyslot == 0) {
     param |= 0x80;
     memcpy((void *)BIGMAC_KEY, g_key, 32);
+  } else if (g_dst_keyslot != 0) {
+    param |= 0x10000000;
+    dst = g_dst_keyslot;
   }
 
   BIGMAC[0] = (u32_t)pt;
-  BIGMAC[1] = (u32_t)pt;
+  BIGMAC[1] = dst;
   BIGMAC[2] = 16;
   BIGMAC[3] = param;
   BIGMAC[4] = g_keyslot;
@@ -95,7 +100,8 @@ static u8_t get_pt(u8_t* pt)
 static u8_t get_keyslot(u8_t* x)
 {
   g_keyslot = (x[0] << 8) | x[1];
-  g_len = x[2];
+  g_dst_keyslot = (x[2] << 8) | x[3];
+  g_len = x[4];
   return 0x00;
 }
 
@@ -107,6 +113,7 @@ static u8_t reset(u8_t* x)
     g_key[i] = 0;
   }
   g_offset = 0;
+  g_dst_keyslot = 0;
   return 0x00;
 }
 
@@ -157,7 +164,7 @@ void main(void) {
   simpleserial_init();    
   simpleserial_addcmd('k', 16, get_key128);
   simpleserial_addcmd('K', 32, get_key256);
-  simpleserial_addcmd('s', 3, get_keyslot);
+  simpleserial_addcmd('s', 5, get_keyslot);
   simpleserial_addcmd('p', 16, get_pt);
   simpleserial_addcmd('x', 0, reset);
   simpleserial_addcmd('a', 8, access_mem);
