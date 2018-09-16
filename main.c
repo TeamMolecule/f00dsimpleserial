@@ -53,6 +53,23 @@ static u8_t get_key256(u8_t* k)
   return 0x00;
 }
 
+#pragma GCC push_options
+#pragma GCC optimize ("O0")
+static int trigger_high(void)
+{
+  register int x = 0xdeadbeef;
+  register int y = g_offset;
+
+  gpio_port_set(0, GPIO_PORT_PS_LED);
+
+  for (register int i = 0; i < y; i++) {
+    x = x * x;
+  }
+  return x;
+}
+
+#pragma GCC pop_options
+
 static u8_t get_pt(u8_t* pt)
 {
   /**********************************
@@ -81,16 +98,16 @@ static u8_t get_pt(u8_t* pt)
   BIGMAC[3] = param;
   BIGMAC[4] = g_keyslot;
 
-  uart_puts(DEBUG_PORT, "XD\r\n");
-
-  for (volatile register int i = 0; i < g_offset; i++);
+  //uart_puts(DEBUG_PORT, "XD\r\n");
+  trigger_high();
 
   // start processing
   BIGMAC[7] = 1;
 
   while (BIGMAC[9] & 1) {}
+
+  gpio_port_clear(0, GPIO_PORT_PS_LED);
   
-  //trigger_low();
   /* End user-specific code here. *
   ********************************/
   simpleserial_put('r', 16, pt);
@@ -156,6 +173,7 @@ void main(void) {
   uart_init(DEBUG_PORT);
 
   gpio_set_port_mode(0, GPIO_PORT_GAMECARD_LED, GPIO_PORT_MODE_OUTPUT);
+  gpio_set_port_mode(0, GPIO_PORT_PS_LED, GPIO_PORT_MODE_OUTPUT);
   gpio_port_set(0, GPIO_PORT_GAMECARD_LED);
 
   uart_puts(DEBUG_PORT, "HI\r\n");
