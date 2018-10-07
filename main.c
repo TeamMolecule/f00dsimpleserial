@@ -12,6 +12,7 @@
 #include "pervasive.h"
 #include "gpio.h"
 #include "simpleserial.h"
+#include "aes.h"
 
 static volatile u32_t * const BIGMAC = (void *)0xE0050000;
 static volatile void * const BIGMAC_KEY = (void *)0xE0050200;
@@ -40,6 +41,7 @@ void *memcpy(void *dst, const void *src, size_t n) {
 static u8_t get_key128(u8_t* k)
 {
   memcpy(g_key, k, 16);
+  AES128_ECB_indp_setkey(k);
   g_keyslot = 0;
   g_len = 16;
   return 0x00;
@@ -53,22 +55,15 @@ static u8_t get_key256(u8_t* k)
   return 0x00;
 }
 
-#pragma GCC push_options
-#pragma GCC optimize ("O0")
-static int trigger_high(void)
+static void trigger_high(void)
 {
-  register int x = 0xdeadbeef;
-  register int y = g_offset;
-
   gpio_port_set(0, GPIO_PORT_PS_LED);
-
-  for (register int i = 0; i < y; i++) {
-    x = x * x;
-  }
-  return x;
 }
 
-#pragma GCC pop_options
+static void trigger_low(void)
+{
+  gpio_port_clear(0, GPIO_PORT_PS_LED);
+}
 
 static u8_t get_pt(u8_t* pt)
 {
@@ -106,7 +101,7 @@ static u8_t get_pt(u8_t* pt)
 
   while (BIGMAC[9] & 1) {}
 
-  gpio_port_clear(0, GPIO_PORT_PS_LED);
+  trigger_low();
   
   /* End user-specific code here. *
   ********************************/
@@ -150,6 +145,16 @@ static u8_t write32(u8_t* x)
   return 0x00;
 }
 
+static u8_t read32(u8_t* x)
+{
+  u32_t addr = (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3];
+  u32_t word;
+  word = *(u32_t *)addr;
+  word = ((word>>24)&0xff) | ((word<<8)&0xff0000) | ((word>>8)&0xff00) | ((word<<24)&0xff000000);
+  simpleserial_put('r', 4, (u8_t *)&word);
+  return 0x00;
+}
+
 static u8_t jump(u8_t* x)
 {
   u32_t addr = (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3];
@@ -161,6 +166,59 @@ static u8_t jump(u8_t* x)
 static u8_t set_offset(u8_t* x)
 {
   g_offset = (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3];
+  return 0x00;
+}
+
+static u8_t nop_loop(u8_t* x)
+{
+  u32_t times = (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3];
+  trigger_high();
+  __asm__ volatile ("repeat %0,end1\n"
+                    "nop\n"
+                    "nop\n"
+                    "nop\n"
+                    "nop\n"
+                    "nop\n"
+                    "nop\n"
+                    "end1: nop\n"
+                    "nop\n" :: "r" (times));
+  trigger_low();
+  return 0x00;
+}
+
+static u8_t div_loop(u8_t* x)
+{
+  u32_t times = (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3];
+  trigger_high();
+  __asm__ volatile ("movu $0, 0xffffff\n"
+                    "movu $1, 0x1\n"
+                    "repeat %0,end2\n"
+                    "div $0, $1\n"
+                    "div $0, $1\n"
+                    "div $0, $1\n"
+                    "div $0, $1\n"
+                    "div $0, $1\n"
+                    "div $0, $1\n"
+                    "div $0, $1\n"
+                    "div $0, $1\n"
+                    "end2: nop\n"
+                    "nop\n"
+                    "ldc $0, $lo\n" :: "r" (times) : "$0", "$1");
+  trigger_low();
+  return 0x00;
+}
+
+static u8_t get_pt_sw(u8_t* pt)
+{
+  if (g_len == 16) {
+    trigger_high();
+
+    AES128_ECB_indp_crypto(pt);
+
+    trigger_low();
+  }
+  
+  simpleserial_put('r', 16, pt);
   return 0x00;
 }
 
@@ -187,8 +245,12 @@ void main(void) {
   simpleserial_addcmd('x', 0, reset);
   simpleserial_addcmd('a', 8, access_mem);
   simpleserial_addcmd('w', 8, write32);
+  simpleserial_addcmd('R', 4, read32);
   simpleserial_addcmd('j', 4, jump);
   simpleserial_addcmd('o', 4, set_offset);
+  simpleserial_addcmd('l', 4, nop_loop);
+  simpleserial_addcmd('L', 4, div_loop);
+  simpleserial_addcmd('P', 16, get_pt_sw);
   while (1) {
     simpleserial_get();
   }

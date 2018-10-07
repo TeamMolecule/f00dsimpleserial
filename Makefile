@@ -7,7 +7,7 @@ LDFLAGS=-Wl,-T linker.x -nodefaultlibs -nostdlib
 OBJCOPY=$(PREFIX)objcopy
 OBJCOPYFLAGS=
 
-OBJ=bootstrap.ao main.o gpio.o pervasive.o simpleserial.o uart.o
+OBJ=bootstrap.ao main.o gpio.o pervasive.o simpleserial.o uart.o aes.o
 
 all: payload.bin f00dexec.bin
 

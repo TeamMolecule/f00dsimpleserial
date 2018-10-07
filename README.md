@@ -14,6 +14,7 @@ over UART.
 | k       | k2b7e151628aed2a6abf7158809cf4f3c\n                                 | Set AES-128 key                                                                                                   | In     |
 | K       | K603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4\n | Set AES-256 key                                                                                                   | In     |
 | p       | p6bc1bee22e409f96e93d7e117393172a\n                                 | Send input plain-text, cause encryption                                                                           | In     |
+| P       | P6bc1bee22e409f96e93d7e117393172a\n                                 | Send input plain-text using software implementation, cause encryption                                             | In     |
 | r       | r3ad77bb40d7a3660a89ecaf32466ef97\n                                 | Result packet for command.                                                                                        | Out    |
 | v       | v\n                                                                 | Check protocol version (ACK on v1.1)                                                                              | In     |
 | x       | x\n                                                                 | Clears Buffers (resets to 'IDLE' state), does not clear any variables.                                            | In     |
@@ -22,7 +23,10 @@ over UART.
 | o       | o00001000\n                                                         | Offset AES engine start after trigger. A counter will increment to this value before starting.                    | In     |
 | a       | a1F84000000004000\n                                                 | Access memory. First four bytes is address in big endian. Next four bytes is length in big endian.                | In     |
 | w       | w3000000000000001\n                                                 | Write 32-bits. First four bytes is address in big endian. Next four bytes is the value in big endian.             | In     |
+| R       | R30000000\n                                                         | Read 32-bits. First four bytes is address in big endian. Returns value in big endian.                             | In     |
 | j       | j005C0000\n                                                         | Jump to code. Four byte address in big endian. Returns result packet in little endian.                            | In     |
+| l       | l00000100\n                                                         | Fast loop. Four byte big endian times. Loops 8*times times.                                                       | In     |
+| L       | L00000100\n                                                         | Slow loop. Four byte big endian times. Loops 4*times times.                                                       | In     |
 
 ## Building
 
