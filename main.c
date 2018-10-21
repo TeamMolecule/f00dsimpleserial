@@ -19,7 +19,6 @@ static volatile void * const BIGMAC_KEY = (void *)0xE0050200;
 static u32_t g_keyslot;
 static u32_t g_len;
 static u32_t g_key[8];
-static u32_t g_offset;
 static u32_t g_dst_keyslot;
 
 void *memcpy(void *dst, const void *src, size_t n) {
@@ -124,7 +123,6 @@ static u8_t reset(u8_t* x)
   for (int i = 0; i < 8; i++) {
     g_key[i] = 0;
   }
-  g_offset = 0;
   g_dst_keyslot = 0;
   return 0x00;
 }
@@ -160,12 +158,6 @@ static u8_t jump(u8_t* x)
   u32_t addr = (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3];
   u32_t res = ((u32_t (*)(void))addr)();
   simpleserial_put('r', 4, (u8_t *)&res);
-  return 0x00;
-}
-
-static u8_t set_offset(u8_t* x)
-{
-  g_offset = (x[0] << 24) | (x[1] << 16) | (x[2] << 8) | x[3];
   return 0x00;
 }
 
@@ -247,7 +239,6 @@ void main(void) {
   simpleserial_addcmd('w', 8, write32);
   simpleserial_addcmd('R', 4, read32);
   simpleserial_addcmd('j', 4, jump);
-  simpleserial_addcmd('o', 4, set_offset);
   simpleserial_addcmd('l', 4, nop_loop);
   simpleserial_addcmd('L', 4, div_loop);
   simpleserial_addcmd('P', 16, get_pt_sw);
