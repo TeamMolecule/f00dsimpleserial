@@ -131,7 +131,7 @@ def do_collection_slot(scope, target, slot):
   p[1] = binascii.hexlify(vita_get_partials.get_partial(target, 8))
   p[2] = binascii.hexlify(vita_get_partials.get_partial(target, 12))
   p[3] = binascii.hexlify(vita_get_partials.get_final(target, KEYSLOT_DST))
-  print('NEW: {}, {}, {}, {}'.format(p[0], p[1], p[2], p[3]))
+  print('EXP: {} {} {} {}'.format(p[0], p[1], p[2], p[3]))
   seen.add(p[0])
 
   while len(seen) < UNIQUE_SEEN_TARGET:
