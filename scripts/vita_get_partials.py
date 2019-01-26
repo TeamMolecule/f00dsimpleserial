@@ -45,11 +45,11 @@ def do_partial_op(target, addr, size, op):
     w32(target, 0xE005000C, 0x00000080 | op) #op 0x80=supply key
     w32(target, 0xE005001C, 0x00000001) #start op
 
-def get_partial(target, size):
+def get_partial(target, size, offset):
     # set known key of all zeros
     zero_buffer(target, 0xE0050200, 16)
     # set buffer of zeros
-    zero_buffer(target, SCRATCH_ADDR+0x1000, 16)
+    zero_buffer(target, SCRATCH_ADDR+0x1000+offset, 16-offset)
     # do forward op
     do_partial_op(target, SCRATCH_ADDR+0x1000, size, 0x101) # encrypt
     # get partial
@@ -81,11 +81,11 @@ if __name__ == "__main__" or __name__ == "__builtin__":
         target = cw.target(scope, cwtarget)
     target.findParam('cmdout').setValue('r$RESPONSE$\\n')
     load_slot(TARGET_SLOT, KEYSLOT_DST)
-    x = get_partial(target, 4)
+    x = get_partial(target, 4, 0)
     print(binascii.hexlify(x))
-    x = get_partial(target, 8)
+    x = get_partial(target, 8, 4)
     print(binascii.hexlify(x))
-    x = get_partial(target, 12)
+    x = get_partial(target, 12, 8)
     print(binascii.hexlify(x))
     x = get_final(target, KEYSLOT_DST)
     print(binascii.hexlify(x))
