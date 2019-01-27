@@ -19,17 +19,16 @@ import vita_run_payload
 import vita_get_partials
 
 VITA_UART0_BAUD = 28985
-GLITCH_OFFSET = 266
-GLITCH_REPEAT = 1
-GLITCH_CYCLE_OFFSETS = [10]#[i for i in range(-45,45,5) if i != 0]
-GLITCH_CYCLE_WIDTHS = [10]#[i for i in range(-45,45,5) if i != 0]
+GLITCH_OFFSETS = range(260,270)
+GLITCH_WIDTHS = [1]
 PAYLOAD_MAX_TRIES = 0 # 0 = max
-KNOWN_KEY = '2b7e151628aed2a6abf7158809cf4f3c'
+KEY_LEN = 32
+KNOWN_KEY = bytearray(b'\x60\x3d\xeb\x10\x15\xca\x71\xbe\x2b\x73\xae\xf0\x85\x7d\x77\x81\x1f\x35\x2c\x07\x3b\x61\x08\xd7\x2d\x98\x10\xa3\x09\x14\xdf\xf4')
 PLAINTEXT = '00000000000000000000000000000000'
 BLOCK_LEN = 16
 KEYSLOTS = [0x208]
 KEYSLOT_DST = 0x8
-UNIQUE_SEEN_TARGET = 300
+UNIQUE_SEEN_TARGET = 500
 VERBOSE = 1
 
 def do_setup(scope, target):
@@ -52,13 +51,15 @@ def do_setup(scope, target):
   scope.glitch.trigger_src = 'ext_single'
   scope.glitch.output = 'enable_only'#'glitch_only'
   scope.io.hs2 = 'clkgen'
-  scope.glitch.ext_offset = GLITCH_OFFSET
-  scope.glitch.repeat = GLITCH_REPEAT
 
   # setup target
-  target.findParam('cmdkey').setValue('k$KEY$\\n')
+  if KEY_LEN == 32:
+    target.findParam('cmdkey').setValue('K$KEY$\\n')
+  else:
+    target.findParam('cmdkey').setValue('k$KEY$\\n')
   target.findParam('cmdgo').setValue('p$TEXT$\\n')
   target.findParam('cmdout').setValue('r$RESPONSE$\\n')
+  target.key_len = KEY_LEN
   target.init()
 
 def get_ciphertext(plain):
@@ -82,7 +83,7 @@ def do_reset_slot(scope, target, slot):
   do_setup(scope, target)
   target.findParam('cmdkey').setValue('')
   # setup keyslot
-  target.runCommand('s{:04X}{:04X}{:02X}\\n'.format(slot, KEYSLOT_DST, 0x10))
+  target.runCommand('s{:04X}{:04X}{:02X}\\n'.format(slot, KEYSLOT_DST, KEY_LEN))
   # get known plaintext
   exp = get_ciphertext(PLAINTEXT)
   # turn on glitching
@@ -95,13 +96,14 @@ def do_collection_analysis(scope, target):
     if not vita_run_payload.run_payload(scope, target, PAYLOAD_MAX_TRIES, VERBOSE):
       return
     exp = do_reset_analysis(scope, target)
+  print('EXP: {}'.format(binascii.hexlify(exp)))
 
   seen = set()
   while len(seen) < UNIQUE_SEEN_TARGET:
-    for offset in GLITCH_CYCLE_OFFSETS:
-      for width in GLITCH_CYCLE_WIDTHS:
-        #scope.glitch.offset = offset
-        #scope.glitch.width = width
+    for offset in GLITCH_OFFSETS:
+      scope.glitch.ext_offset = offset
+      for width in GLITCH_WIDTHS:
+        scope.glitch.repeat = width
         s = get_ciphertext(PLAINTEXT)
         if s is None:
           if not vita_run_payload.run_payload(scope, target, PAYLOAD_MAX_TRIES, VERBOSE):
@@ -135,10 +137,10 @@ def do_collection_slot(scope, target, slot):
   seen.add(p[0])
 
   while len(seen) < UNIQUE_SEEN_TARGET:
-    for offset in GLITCH_CYCLE_OFFSETS:
-      for width in GLITCH_CYCLE_WIDTHS:
-        #scope.glitch.offset = offset
-        #scope.glitch.width = width
+    for offset in GLITCH_OFFSETS:
+      scope.glitch.ext_offset = offset
+      for width in GLITCH_WIDTHS:
+        scope.glitch.repeat = width
         s = get_ciphertext(PLAINTEXT) # ciphertext hidden
         if s is None:
           if not vita_run_payload.run_payload(scope, target, PAYLOAD_MAX_TRIES, VERBOSE):
