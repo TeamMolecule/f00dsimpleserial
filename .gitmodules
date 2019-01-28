@@ -1,0 +1,3 @@
+[submodule "scripts/dfa_crack/JeanGrey"]
+	path = scripts/dfa_crack/JeanGrey
+	url = https://github.com/SideChannelMarvels/JeanGrey.git
