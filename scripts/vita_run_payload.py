@@ -61,14 +61,16 @@ def hexdump(src, offset, length=16):
     return ''.join(lines)
 
 
-def run_payload(scope, target, timeout=0, verbose=0):
+def run_payload(scope, target, master_timeout=0, verbose=0):
     if not hasattr(target, 'mmc'):
         target = cwtarget()
         target.con(scope)
     # setup parameters needed for glitch the stm32f
     scope.glitch.clk_src = 'clkgen'
 
+    scope.io.hs2 = "disabled"
     scope.clock.clkgen_freq = VITA_CLK_FREQ
+    scope.io.hs2 = 'clkgen'
     scope.io.tio1 = "serial_tx"
     scope.io.tio2 = "serial_rx"
 
@@ -105,7 +107,6 @@ def run_payload(scope, target, timeout=0, verbose=0):
     scope.glitch.resetDcms()
     scope.glitch.output = 'enable_only'
     scope.glitch.trigger_src = 'ext_continuous'
-    scope.io.hs2 = 'clkgen'
 
     # enable trigger
     scope.advancedSettings.cwEXTRA.setTargetGlitchOut('A', True)
@@ -209,23 +210,25 @@ def run_payload(scope, target, timeout=0, verbose=0):
                         print('Waiting for UART data...')
                     timeout = WAIT_FOR_UART_TIMEOUT
                     count = 0
+                    dat = ''
                     while timeout > 0:
                         count = ser.inWaiting()
                         if count > 0:
+                            dat = ser.read(count)
                             if verbose:
-                                print(ser.read(count))
+                                print(dat)
                             break
                         time.sleep(0.1)
                         timeout -= 1
 
-                    success = (count > 0)
+                    success = dat == 'HI\r\n'
 
                 if success:
                     break
             if success:
                 break
         tries += 1
-        if timeout > 0 and tries >= timeout:
+        if master_timeout > 0 and tries >= master_timeout:
           return False
     return success
 
