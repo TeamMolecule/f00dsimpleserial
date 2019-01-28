@@ -294,11 +294,56 @@ class AES(object):
 
         return matrix2bytes(cipher_state)
 
+    def encrypt_diff(self, plaintext_a, plaintext_b):
+        """
+        Encrypts a single block of 16 byte long plaintext.
+        """
+        assert len(plaintext_a) == 16
+        assert len(plaintext_b) == 16
+        log = [None] * (self.n_rounds + 1)
+        log[0] = [None] * 4
+
+        plain_state_a = bytes2matrix(plaintext_a)
+        plain_state_b = bytes2matrix(plaintext_b)
+
+        add_round_key(plain_state_a, self._key_matrices[0])
+        add_round_key(plain_state_b, self._key_matrices[0])
+        log[0][AES.Step.AddRoundKey] = xor_bytes(matrix2bytes(plain_state_a), matrix2bytes(plain_state_b))
+
+        for i in range(1, self.n_rounds):
+            log[i] = [None] * 4
+            sub_bytes(plain_state_a)
+            sub_bytes(plain_state_b)
+            log[i][AES.Step.SubBytes] = xor_bytes(matrix2bytes(plain_state_a), matrix2bytes(plain_state_b))
+            shift_rows(plain_state_a)
+            shift_rows(plain_state_b)
+            log[i][AES.Step.ShiftRows] = xor_bytes(matrix2bytes(plain_state_a), matrix2bytes(plain_state_b))
+            mix_columns(plain_state_a)
+            mix_columns(plain_state_b)
+            log[i][AES.Step.MixColumns] = xor_bytes(matrix2bytes(plain_state_a), matrix2bytes(plain_state_b))
+            add_round_key(plain_state_a, self._key_matrices[i])
+            add_round_key(plain_state_b, self._key_matrices[i])
+            log[i][AES.Step.AddRoundKey] = xor_bytes(matrix2bytes(plain_state_a), matrix2bytes(plain_state_b))
+
+        log[self.n_rounds] = [None] * 4
+        sub_bytes(plain_state_a)
+        sub_bytes(plain_state_b)
+        log[self.n_rounds][AES.Step.SubBytes] = xor_bytes(matrix2bytes(plain_state_a), matrix2bytes(plain_state_b))
+        shift_rows(plain_state_a)
+        shift_rows(plain_state_b)
+        log[self.n_rounds][AES.Step.ShiftRows] = xor_bytes(matrix2bytes(plain_state_a), matrix2bytes(plain_state_b))
+        add_round_key(plain_state_a, self._key_matrices[-1])
+        add_round_key(plain_state_b, self._key_matrices[-1])
+        log[self.n_rounds][AES.Step.AddRoundKey] = xor_bytes(matrix2bytes(plain_state_a), matrix2bytes(plain_state_b))
+
+        return log
+
     def decrypt_diff(self, ciphertext_a, ciphertext_b):
         """
         Decrypts a single block of 16 byte long ciphertext.
         """
         assert len(ciphertext_a) == 16
+        assert len(ciphertext_b) == 16
         log = [None] * (self.n_rounds + 1)
         log[self.n_rounds] = [None] * 4
 
