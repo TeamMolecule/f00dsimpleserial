@@ -80,7 +80,7 @@ if __name__ == "__main__" or __name__ == "__builtin__":
         scope = cw.scope()
         target = cw.target(scope, cwtarget)
     target.findParam('cmdout').setValue('r$RESPONSE$\\n')
-    load_slot(TARGET_SLOT, KEYSLOT_DST)
+    load_slot(target, TARGET_SLOT, KEYSLOT_DST)
     x = get_partial(target, 4)
     print(binascii.hexlify(x))
     x = get_partial(target, 8)
