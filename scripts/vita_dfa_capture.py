@@ -20,17 +20,19 @@ import vita_get_partials
 
 VITA_UART0_BAUD = 28985
 USE_4X_CLOCK = True
-GLITCH_OFFSETS = range(265*4,271*4)
-GLITCH_WIDTHS = [4]
+GLITCH_OFFSETS = range(265*4, 272*4)
+GLITCH_REPEAT = 1*4
 PAYLOAD_MAX_TRIES = 0 # 0 = max
 #KNOWN_KEY = bytearray(binascii.unhexlify('2b7e151628aed2a6abf7158809cf4f3c'))
 KNOWN_KEY = bytearray(binascii.unhexlify('603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4'))
 KEY_LEN = len(KNOWN_KEY)
 PLAINTEXT = '00000000000000000000000000000000'
+#PLAINTEXT = 'E568F68194CF76D6174D4CC04310A854'
+ENCRYPT = False
 BLOCK_LEN = 16
-KEYSLOTS = [0]
+KEYSLOTS = [[0x216,0]]
 KEYSLOT_DST = 0x8
-UNIQUE_SEEN_TARGET = 500
+UNIQUE_SEEN_TARGET = 5000
 VERBOSE = 1
 
 def do_setup(scope, target):
@@ -52,6 +54,7 @@ def do_setup(scope, target):
   scope.glitch.resetDcms()
   scope.glitch.trigger_src = 'ext_single'
   scope.glitch.output = 'enable_only'#'glitch_only'
+  scope.glitch.repeat = GLITCH_REPEAT
   
   # set new clock
   if USE_4X_CLOCK:
@@ -72,12 +75,20 @@ def do_setup(scope, target):
   target.key_len = KEY_LEN
   target.init()
 
+  do_set_encrypt(target, ENCRYPT)
+
 def get_ciphertext(plain):
   target.loadInput(plain)
   scope.arm()
   target.go()
   s = target.readOutput()
   return s
+
+def do_set_encrypt(target, encrypt):
+  # patch the code for decrypt
+  if not encrypt:
+    target.runCommand('w00040340c3ee0302\\n')
+    target.runCommand('w00040338e2310102\\n')
 
 def do_reset_analysis(scope, target):
   do_setup(scope, target)
@@ -89,11 +100,11 @@ def do_reset_analysis(scope, target):
   scope.advancedSettings.cwEXTRA.setTargetGlitchOut('A', True)
   return exp
 
-def do_reset_slot(scope, target, slot):
+def do_reset_slot(scope, target, slot, dst_slot):
   do_setup(scope, target)
   target.findParam('cmdkey').setValue('')
   # setup keyslot
-  target.runCommand('s{:04X}{:04X}{:02X}\\n'.format(slot, KEYSLOT_DST, KEY_LEN))
+  target.runCommand('s{:04X}{:04X}{:02X}\\n'.format(slot, dst_slot, KEY_LEN))
   # get known plaintext
   exp = get_ciphertext(PLAINTEXT)
   # turn on glitching
@@ -107,67 +118,81 @@ def do_collection_analysis(scope, target):
       return
     exp = do_reset_analysis(scope, target)
   exp_txt = binascii.hexlify(exp)
-  print('EXP: {}'.format(exp_txt))
+  print('EXP: @0000 {}'.format(exp_txt))
 
   seen = set([exp_txt])
   while len(seen) < UNIQUE_SEEN_TARGET:
     for offset in GLITCH_OFFSETS:
       scope.glitch.ext_offset = offset
-      for width in GLITCH_WIDTHS:
-        scope.glitch.repeat = width
-        s = get_ciphertext(PLAINTEXT)
-        if s is None:
-          if not vita_run_payload.run_payload(scope, target, PAYLOAD_MAX_TRIES, VERBOSE):
-            return
-          exp = do_reset_analysis(scope, target)
+      s = get_ciphertext(PLAINTEXT)
+      if s is None:
+        if not vita_run_payload.run_payload(scope, target, PAYLOAD_MAX_TRIES, VERBOSE):
+          return
+        exp = do_reset_analysis(scope, target)
+      else:
+        txt = binascii.hexlify(s)
+        if txt in seen:
+          print('seen: {}'.format(txt))
         else:
-          txt = binascii.hexlify(s)
-          if txt in seen:
-            print('seen: {}'.format(txt))
-          else:
-            seen.add(txt)
-            print('NEW: {}'.format(txt))
+          seen.add(txt)
+          print('NEW: @{:04} {}'.format(offset, txt))
 
-def do_collection_slot(scope, target, slot):
-  exp = do_reset_slot(scope, target, slot)
+def get_partials(target, slot, first=None):
+  p = [None] * 4
+  if first is None:
+    p[0] = binascii.hexlify(vita_get_partials.get_partial(target, 4))
+  else:
+    p[0] = first
+  p[1] = binascii.hexlify(vita_get_partials.get_partial(target, 8))
+  p[2] = binascii.hexlify(vita_get_partials.get_partial(target, 12))
+  p[3] = binascii.hexlify(vita_get_partials.get_final(target, slot))
+  return p
+
+def do_collection_slot(scope, target, slot, dst_slot):
+  exp = do_reset_slot(scope, target, slot, dst_slot)
   while exp is None:
     if not vita_run_payload.run_payload(scope, target, PAYLOAD_MAX_TRIES, VERBOSE):
       return
-    exp = do_reset_slot(scope, target, slot)
+    exp = do_reset_slot(scope, target, slot, dst_slot)
 
-  print('exp: {}'.format(binascii.hexlify(exp)))
+  exp_txt = binascii.hexlify(exp)
+  print('exp: {}'.format(exp_txt))
   seen = set()
+  needs_partials = (dst_slot != 0)
 
   # get uncorrupted
-  p = [None] * 4
-  p[0] = binascii.hexlify(vita_get_partials.get_partial(target, 4))
-  p[1] = binascii.hexlify(vita_get_partials.get_partial(target, 8))
-  p[2] = binascii.hexlify(vita_get_partials.get_partial(target, 12))
-  p[3] = binascii.hexlify(vita_get_partials.get_final(target, KEYSLOT_DST))
-  print('EXP: {} {} {} {}'.format(p[0], p[1], p[2], p[3]))
-  seen.add(p[0])
+  if needs_partials:
+    p = get_partials(target, dst_slot)
+    print('EXP: @{:04} PARTIAL:{:03X} {} {} {} {}'.format(0, slot, p[0], p[1], p[2], p[3]))
+    seen.add(p[0])
+  else:
+    seen.add(exp_txt)
+    print('EXP: @{:04} SLOT:{:03X} {}'.format(0, slot, exp_txt))
 
   while len(seen) < UNIQUE_SEEN_TARGET:
     for offset in GLITCH_OFFSETS:
       scope.glitch.ext_offset = offset
-      for width in GLITCH_WIDTHS:
-        scope.glitch.repeat = width
-        s = get_ciphertext(PLAINTEXT) # ciphertext hidden
-        if s is None:
-          if not vita_run_payload.run_payload(scope, target, PAYLOAD_MAX_TRIES, VERBOSE):
-            return
-          do_reset_slot(scope, target, slot)
-          continue
-        p = [None] * 4
-        p[0] = binascii.hexlify(vita_get_partials.get_partial(target, 4))
-        if p[0] in seen:
+      s = get_ciphertext(PLAINTEXT) # ciphertext hidden
+      if s is None:
+        if not vita_run_payload.run_payload(scope, target, PAYLOAD_MAX_TRIES, VERBOSE):
+          return
+        do_reset_slot(scope, target, slot, dst_slot)
+        continue
+      if needs_partials:
+        tst = binascii.hexlify(vita_get_partials.get_partial(target, 4))
+        if tst in seen:
           print('already seen: ' + p[0])
         else:
-          seen.add(p[0])
-          p[1] = binascii.hexlify(vita_get_partials.get_partial(target, 8))
-          p[2] = binascii.hexlify(vita_get_partials.get_partial(target, 12))
-          p[3] = binascii.hexlify(vita_get_partials.get_final(target, KEYSLOT_DST))
-          print('NEW: {} {} {} {}'.format(p[0], p[1], p[2], p[3]))
+          seen.add(tst)
+          p = get_partials(target, dst_slot, first=tst)
+          print('NEW: @{:04} PARTIAL:{:03X} {} {} {} {}'.format(offset, slot, p[0], p[1], p[2], p[3]))
+      else:
+        txt = binascii.hexlify(s)
+        if txt in seen:
+          print('seen: {}'.format(txt))
+        else:
+          seen.add(txt)
+          print('NEW: @{:04} SLOT:{:03X} {}'.format(offset, slot, txt))
 
 try:
   scope = self.scope
@@ -177,9 +202,9 @@ except NameError:
   target = cw.target(scope, cwtarget)
 
 do_setup(scope, target)
-for slot in KEYSLOTS:
+for slot,dst_slot in KEYSLOTS:
   if slot == 0:
     do_collection_analysis(scope, target)
   else:
-    do_collection_slot(scope, target, slot)
+    do_collection_slot(scope, target, slot, dst_slot)
 print('Done')
