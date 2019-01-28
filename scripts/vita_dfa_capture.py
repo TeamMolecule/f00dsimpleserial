@@ -106,9 +106,10 @@ def do_collection_analysis(scope, target):
     if not vita_run_payload.run_payload(scope, target, PAYLOAD_MAX_TRIES, VERBOSE):
       return
     exp = do_reset_analysis(scope, target)
-  print('EXP: {}'.format(binascii.hexlify(exp)))
+  exp_txt = binascii.hexlify(exp)
+  print('EXP: {}'.format(exp_txt))
 
-  seen = set([exp])
+  seen = set([exp_txt])
   while len(seen) < UNIQUE_SEEN_TARGET:
     for offset in GLITCH_OFFSETS:
       scope.glitch.ext_offset = offset
