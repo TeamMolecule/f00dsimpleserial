@@ -19,14 +19,16 @@ import vita_run_payload
 import vita_get_partials
 
 VITA_UART0_BAUD = 28985
-GLITCH_OFFSETS = range(260,270)
-GLITCH_WIDTHS = [1]
+USE_4X_CLOCK = True
+GLITCH_OFFSETS = range(265*4,271*4)
+GLITCH_WIDTHS = [4]
 PAYLOAD_MAX_TRIES = 0 # 0 = max
-KEY_LEN = 32
-KNOWN_KEY = bytearray(b'\x60\x3d\xeb\x10\x15\xca\x71\xbe\x2b\x73\xae\xf0\x85\x7d\x77\x81\x1f\x35\x2c\x07\x3b\x61\x08\xd7\x2d\x98\x10\xa3\x09\x14\xdf\xf4')
+#KNOWN_KEY = bytearray(binascii.unhexlify('2b7e151628aed2a6abf7158809cf4f3c'))
+KNOWN_KEY = bytearray(binascii.unhexlify('603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4'))
+KEY_LEN = len(KNOWN_KEY)
 PLAINTEXT = '00000000000000000000000000000000'
 BLOCK_LEN = 16
-KEYSLOTS = [0x208]
+KEYSLOTS = [0]
 KEYSLOT_DST = 0x8
 UNIQUE_SEEN_TARGET = 500
 VERBOSE = 1
@@ -50,7 +52,15 @@ def do_setup(scope, target):
   scope.glitch.resetDcms()
   scope.glitch.trigger_src = 'ext_single'
   scope.glitch.output = 'enable_only'#'glitch_only'
-  scope.io.hs2 = 'clkgen'
+  
+  # set new clock
+  if USE_4X_CLOCK:
+    scope.io.hs2 = "disabled"
+    scope.clock.clkgen_freq *= 4
+    scope.advancedSettings.cwEXTRA.setClkgenDivider(2)
+    scope.io.hs2 = 'clkgen_divided'
+  else:
+    scope.io.hs2 = 'clkgen'
 
   # setup target
   if KEY_LEN == 32:
@@ -98,7 +108,7 @@ def do_collection_analysis(scope, target):
     exp = do_reset_analysis(scope, target)
   print('EXP: {}'.format(binascii.hexlify(exp)))
 
-  seen = set()
+  seen = set([exp])
   while len(seen) < UNIQUE_SEEN_TARGET:
     for offset in GLITCH_OFFSETS:
       scope.glitch.ext_offset = offset
@@ -108,7 +118,7 @@ def do_collection_analysis(scope, target):
         if s is None:
           if not vita_run_payload.run_payload(scope, target, PAYLOAD_MAX_TRIES, VERBOSE):
             return
-          exp = do_reset(scope, target)
+          exp = do_reset_analysis(scope, target)
         else:
           txt = binascii.hexlify(s)
           if txt in seen:
