@@ -305,7 +305,6 @@ class AES(object):
         cipher_state_a = bytes2matrix(ciphertext_a)
         cipher_state_b = bytes2matrix(ciphertext_b)
 
-        print(''.join(['({},{}){:02X} '.format(i, j, self._key_matrices[-1][i][j]) for i in range(4) for j in range(4)]))
         add_round_key(cipher_state_a, self._key_matrices[-1])
         add_round_key(cipher_state_b, self._key_matrices[-1])
         log[self.n_rounds][AES.Step.AddRoundKey] = xor_bytes(matrix2bytes(cipher_state_a), matrix2bytes(cipher_state_b))
