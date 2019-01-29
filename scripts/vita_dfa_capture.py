@@ -179,7 +179,7 @@ def do_collection_slot(scope, target, slot, dst_slot):
       if needs_partials:
         tst = binascii.hexlify(vita_get_partials.get_partial(target, 4))
         if tst in seen:
-          print('already seen: ' + p[0])
+          print('seen: ' + tst)
         else:
           seen.add(tst)
           p = get_partials(target, dst_slot, first=tst)
