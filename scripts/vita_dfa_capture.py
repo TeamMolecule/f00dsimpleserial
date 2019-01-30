@@ -20,7 +20,9 @@ import vita_get_partials
 
 VITA_UART0_BAUD = 28985
 USE_4X_CLOCK = True
-GLITCH_OFFSETS = range(265*4, 272*4)
+GLITCH_OFFSETS_MEM    = [270*4+1, 270*4+3]
+GLITCH_OFFSETS_MASTER = [281*4+2, 282*4+1]
+GLITCH_OFFSETS_NORMIE = [271*4+2, 272*4+1]
 GLITCH_REPEAT = 1*4
 PAYLOAD_MAX_TRIES = 0 # 0 = max
 #KNOWN_KEY = bytearray(binascii.unhexlify('2b7e151628aed2a6abf7158809cf4f3c'))
@@ -29,8 +31,8 @@ KEY_LEN = len(KNOWN_KEY)
 PLAINTEXT = '00000000000000000000000000000000'
 #PLAINTEXT = 'E568F68194CF76D6174D4CC04310A854'
 ENCRYPT = False
-KEYSLOTS = [[0x216,0]]
-UNIQUE_SEEN_TARGET = 5000
+KEYSLOTS = [ [ 0x207, 0x9 ], [ 0x213, 0 ], [ 0x214, 0 ], [ 0x216, 0 ], [ 0x340, 0x10 ], [ 0x344, 0x21 ],[ 0x345, 0x21 ],[ 0x346, 0x21 ],[ 0x347, 0x21 ],[ 0x348, 0x21 ] ]
+TIMEOUT = 3000
 VERBOSE = 1
 
 def do_setup(scope, target):
@@ -119,8 +121,9 @@ def do_collection_analysis(scope, target):
   print('EXP: @0000 {}'.format(exp_txt))
 
   seen = set([exp_txt])
-  while len(seen) < UNIQUE_SEEN_TARGET:
-    for offset in GLITCH_OFFSETS:
+  i = 0
+  while i < TIMEOUT:
+    for offset in OFFSET_MEM:
       scope.glitch.ext_offset = offset
       s = get_ciphertext(PLAINTEXT)
       if s is None:
@@ -134,6 +137,7 @@ def do_collection_analysis(scope, target):
         else:
           seen.add(txt)
           print('NEW: @{:04} {}'.format(offset, txt))
+        i += 1
 
 def get_partials(target, slot, first=None):
   p = [None] * 4
@@ -160,15 +164,18 @@ def do_collection_slot(scope, target, slot, dst_slot):
 
   # get uncorrupted
   if needs_partials:
+    offset_list = GLITCH_OFFSETS_MASTER
     p = get_partials(target, dst_slot)
     print('EXP: @{:04} PARTIAL:{:03X} {} {} {} {}'.format(0, slot, p[0], p[1], p[2], p[3]))
     seen.add(p[0])
   else:
+    offset_list = GLITCH_OFFSETS_NORMIE
     seen.add(exp_txt)
     print('EXP: @{:04} SLOT:{:03X} {}'.format(0, slot, exp_txt))
 
-  while len(seen) < UNIQUE_SEEN_TARGET:
-    for offset in GLITCH_OFFSETS:
+  i = 0
+  while i < TIMEOUT:
+    for offset in offset_list:
       scope.glitch.ext_offset = offset
       s = get_ciphertext(PLAINTEXT) # ciphertext hidden
       if s is None:
@@ -191,6 +198,7 @@ def do_collection_slot(scope, target, slot, dst_slot):
         else:
           seen.add(txt)
           print('NEW: @{:04} SLOT:{:03X} {}'.format(offset, slot, txt))
+      i += 1
 
 try:
   scope = self.scope
