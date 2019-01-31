@@ -19,6 +19,7 @@ import vita_run_payload
 import vita_get_partials
 
 VITA_UART0_BAUD = 28985
+VITA_CLK_FREQ = 12000000
 USE_4X_CLOCK = True
 GLITCH_OFFSETS_MEM    = [270*4+1, 270*4+3]
 GLITCH_OFFSETS_MASTER = [281*4+2, 282*4+1]
@@ -59,7 +60,7 @@ def do_setup(scope, target):
   # set new clock
   if USE_4X_CLOCK:
     scope.io.hs2 = "disabled"
-    scope.clock.clkgen_freq *= 4
+    scope.clock.clkgen_freq = 4*VITA_CLK_FREQ
     scope.advancedSettings.cwEXTRA.setClkgenDivider(2)
     scope.io.hs2 = 'clkgen_divided'
   else:
@@ -139,15 +140,15 @@ def do_collection_analysis(scope, target):
           print('NEW: @{:04} {}'.format(offset, txt))
         i += 1
 
-def get_partials(target, slot, first=None):
+def get_partials(target, slot, first=None, encrypt=True):
   p = [None] * 4
   if first is None:
-    p[0] = binascii.hexlify(vita_get_partials.get_partial(target, 4))
+    p[0] = binascii.hexlify(vita_get_partials.get_partial(target, 4, encrypt=encrypt))
   else:
     p[0] = first
-  p[1] = binascii.hexlify(vita_get_partials.get_partial(target, 8))
-  p[2] = binascii.hexlify(vita_get_partials.get_partial(target, 12))
-  p[3] = binascii.hexlify(vita_get_partials.get_final(target, slot))
+  p[1] = binascii.hexlify(vita_get_partials.get_partial(target, 8, encrypt=encrypt))
+  p[2] = binascii.hexlify(vita_get_partials.get_partial(target, 12, encrypt=encrypt))
+  p[3] = binascii.hexlify(vita_get_partials.get_final(target, slot, encrypt=encrypt))
   return p
 
 def do_collection_slot(scope, target, slot, dst_slot):
@@ -161,11 +162,11 @@ def do_collection_slot(scope, target, slot, dst_slot):
   print('exp: {}'.format(exp_txt))
   seen = set()
   needs_partials = (dst_slot != 0)
-
+  encrypt = (dst_slot != 0x10)
   # get uncorrupted
   if needs_partials:
     offset_list = GLITCH_OFFSETS_MASTER
-    p = get_partials(target, dst_slot)
+    p = get_partials(target, dst_slot, encrypt=encrypt)
     print('EXP: @{:04} PARTIAL:{:03X} {} {} {} {}'.format(0, slot, p[0], p[1], p[2], p[3]))
     seen.add(p[0])
   else:
@@ -189,7 +190,7 @@ def do_collection_slot(scope, target, slot, dst_slot):
           print('seen: ' + tst)
         else:
           seen.add(tst)
-          p = get_partials(target, dst_slot, first=tst)
+          p = get_partials(target, dst_slot, first=tst, encrypt=encrypt)
           print('NEW: @{:04} PARTIAL:{:03X} {} {} {} {}'.format(offset, slot, p[0], p[1], p[2], p[3]))
       else:
         txt = binascii.hexlify(s)
