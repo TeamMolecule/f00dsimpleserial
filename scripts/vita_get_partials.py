@@ -45,27 +45,27 @@ def do_partial_op(target, addr, size, op):
     w32(target, 0xE005000C, 0x00000080 | op) #op 0x80=supply key
     w32(target, 0xE005001C, 0x00000001) #start op
 
-def get_partial(target, size):
+def get_partial(target, size, encrypt=True):
     # set known key of all zeros
     zero_buffer(target, 0xE0050200, 16)
     # set buffer of zeros
     zero_buffer(target, SCRATCH_ADDR+0x1000, 16)
     # do forward op
-    do_partial_op(target, SCRATCH_ADDR+0x1000, size, 0x101) # encrypt
+    do_partial_op(target, SCRATCH_ADDR+0x1000, size, 0x101 if encrypt else 0x102) # encrypt
     # get partial
     partial = r128(target, SCRATCH_ADDR+0x1000)
     # do backward op
-    do_partial_op(target, SCRATCH_ADDR+0x1000, size, 0x102) # decrypt
+    do_partial_op(target, SCRATCH_ADDR+0x1000, size, 0x102 if encrypt else 0x101) # decrypt
     return partial
 
-def get_final(target, slot):
+def get_final(target, slot, encrypt=True):
     # buf of known plaintext
     zero_buffer(target, SCRATCH_ADDR+0x1000, 16)
     # setup bigmac
     w32(target, 0xE0050000, SCRATCH_ADDR+0x1000) #src
     w32(target, 0xE0050004, SCRATCH_ADDR+0x1000) #dst
     w32(target, 0xE0050008, 0x00000010) #size
-    w32(target, 0xE005000C, 0x00000101) #AES128-ECB encrypt
+    w32(target, 0xE005000C, 0x101 if encrypt else 0x102) #AES128-ECB
     w32(target, 0xE0050010, slot) #keyslot
     w32(target, 0xE005001C, 0x00000001) #start op
     # get text
