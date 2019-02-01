@@ -185,7 +185,7 @@ def do_collection_slot(scope, target, slot, dst_slot):
         do_reset_slot(scope, target, slot, dst_slot)
         continue
       if needs_partials:
-        tst = binascii.hexlify(vita_get_partials.get_partial(target, 4))
+        tst = binascii.hexlify(vita_get_partials.get_partial(target, 4, encrypt=encrypt))
         if tst in seen:
           print('seen: ' + tst)
         else:
