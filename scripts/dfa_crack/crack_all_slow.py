@@ -3,6 +3,12 @@ from JeanGrey.phoenixAES import phoenixAES
 import binascii
 import sys
 
+# THIS SCRIPT MIGHT GIVE YOU WRONG RESULTS!!!
+# It brute forces all possible 'expected' results and this may lead to 
+# a corrupted key. Only use for debugging or if you are okay with a 
+# corrupted key (only a few bits might be off or it's unlikely to be 
+# solved.
+
 def main(flavour, last_round_file, second_round_file=None, known=None):
     encrypt = flavour[0] == 'E'
     candidates = []
