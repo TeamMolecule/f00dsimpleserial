@@ -30,10 +30,9 @@ PAYLOAD_MAX_TRIES = 0 # 0 = max
 KNOWN_KEY = bytearray(binascii.unhexlify('603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4'))
 KEY_LEN = len(KNOWN_KEY)
 PLAINTEXT = '00000000000000000000000000000000'
-#PLAINTEXT = 'E568F68194CF76D6174D4CC04310A854'
 ENCRYPT = False
-KEYSLOTS = [ [ 0x207, 0x9 ], [ 0x213, 0 ], [ 0x214, 0 ], [ 0x216, 0 ], [ 0x340, 0x10 ], [ 0x344, 0x21 ],[ 0x345, 0x21 ],[ 0x346, 0x21 ],[ 0x347, 0x21 ],[ 0x348, 0x21 ] ]
-TIMEOUT = 3000
+KEYSLOTS = [ [i, 0] for i in range(0x200, 0x203+1) ] + [ [0x204, 0x1], [0x205, 0x1] ] + [ [i, 0x8] for i in range(0x206, 0x20D+1) ] + [ [i, 0] for i in range(0x210, 0x217+1) ] + [ [i, 0] for i in range(0x300, 0x33F+1) ] + [ [i, 0x10] for i in range(0x340, 0x343+1) ] + [ [i, 0x21] for i in range(0x344, 0x353+1) ] + [ [i, 0] for i in range(0x354, 0x3FF+1) ]
+TIMEOUT = 100000
 VERBOSE = 1
 
 def do_setup(scope, target):
@@ -162,7 +161,7 @@ def do_collection_slot(scope, target, slot, dst_slot):
   print('exp: {}'.format(exp_txt))
   seen = set()
   needs_partials = (dst_slot != 0)
-  encrypt = (dst_slot != 0x10)
+  encrypt = (dst_slot != 0x10) and (dst_slot != 0x1)
   # get uncorrupted
   if needs_partials:
     offset_list = GLITCH_OFFSETS_MASTER
